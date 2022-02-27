@@ -51,22 +51,14 @@ def quantile_loss(preds, labels, delta=0.25):
     return torch.mean(torch.where(condition, large_res, small_res))
 
 
+def masked_ape_torch(preds,labels):
+    idx = labels>10
+    loss = (torch.abs((preds[idx] - labels[idx]) / labels[idx]))
+    return loss
+
+
 def masked_mape_torch(preds, labels, null_val=np.nan, eps=0):
-    labels[torch.abs(labels) < 1e-4] = 0
-    if np.isnan(null_val) and eps != 0:
-        loss = torch.abs((preds - labels) / (labels + eps))
-        return torch.mean(loss)
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else:
-        mask = labels.ne(null_val)
-    mask = mask.float()
-    mask /= torch.mean(mask)
-    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-    loss = torch.abs((preds - labels) / labels)
-    loss = loss * mask
-    loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
-    return torch.mean(loss)
+    return torch.mean(masked_ape_torch(preds,labels))
 
 
 def masked_mse_torch(preds, labels, null_val=np.nan):
@@ -132,19 +124,15 @@ def masked_mae_np(preds, labels, null_val=np.nan):
         mae = np.nan_to_num(mae * mask)
         return np.mean(mae)
 
+def masked_ape_np(preds, labels, null_val=np.nan):
+    idx = labels > 10
+    loss = (np.abs((preds[idx] - labels[idx]) / labels[idx]))
+    return loss
+
 
 def masked_mape_np(preds, labels, null_val=np.nan):
-    with np.errstate(divide='ignore', invalid='ignore'):
-        if np.isnan(null_val):
-            mask = ~np.isnan(labels)
-        else:
-            mask = np.not_equal(labels, null_val)
-        mask = mask.astype('float32')
-        mask /= np.mean(mask)
-        mape = np.abs(np.divide(np.subtract(
-            preds, labels).astype('float32'), labels))
-        mape = np.nan_to_num(mask * mape)
-        return np.mean(mape)
+    return np.mean(masked_ape_np(preds,labels))
+
 
 
 def r2_score_np(preds, labels):
