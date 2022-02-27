@@ -53,12 +53,15 @@ def quantile_loss(preds, labels, delta=0.25):
 
 def masked_ape_torch(preds,labels):
     idx = labels>10
-    loss = (torch.abs((preds[idx] - labels[idx]) / labels[idx]))
+    loss = torch.sum(torch.abs((preds[idx] - labels[idx]) / labels[idx]))
+
     return loss
 
 
 def masked_mape_torch(preds, labels, null_val=np.nan, eps=0):
-    return torch.mean(masked_ape_torch(preds,labels))
+    idx = labels>10
+    loss = torch.mean(torch.abs((preds[idx] - labels[idx]) / labels[idx]))
+    return loss
 
 
 def masked_mse_torch(preds, labels, null_val=np.nan):
@@ -126,12 +129,14 @@ def masked_mae_np(preds, labels, null_val=np.nan):
 
 def masked_ape_np(preds, labels, null_val=np.nan):
     idx = labels > 10
-    loss = (np.abs((preds[idx] - labels[idx]) / labels[idx]))
+    loss = np.sum(np.abs((preds[idx] - labels[idx]) / labels[idx]))
     return loss
 
 
 def masked_mape_np(preds, labels, null_val=np.nan):
-    return np.mean(masked_ape_np(preds,labels))
+    idx = labels > 10
+    loss = np.mean(np.abs((preds[idx] - labels[idx]) / labels[idx]))
+    return loss
 
 
 
