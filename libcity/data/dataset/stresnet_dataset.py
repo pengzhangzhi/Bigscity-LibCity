@@ -59,6 +59,7 @@ class STResNetDataset(TrafficStateGridDataset, TrafficStateCPTDataset):
             data = np.hstack(data)
         else:
             data = np.zeros((len(timestamp_list), 0))
+        
         return data  # (len(timestamp_list), ext_dim)
 
     def _load_ext_data(self, ts_x, ts_y):
@@ -81,12 +82,17 @@ class STResNetDataset(TrafficStateGridDataset, TrafficStateCPTDataset):
         else:
             ext_data = None
         ext_x = []
+        
         for ts in ts_x:
             ext_x.append(self._get_external_array(ts, ext_data, ext_time=self.external_time))
         ext_x = np.asarray(ext_x)
         # ext_x: (num_samples_plus, T_c+T_p+T_t, ext_dim)
         ext_y = self._get_external_array(ts_y, ext_data, previous_ext=True, ext_time=self.external_time)
         # ext_y: (num_samples_plus, ext_dim)
+        
+        ext = self._get_external_array(self.timesolts, ext_data, ext_time=True) # external data is just time.
+        print("ext",ext.shape)
+        np.save("ext",ext)
         return ext_x, ext_y
 
     def get_data_feature(self):

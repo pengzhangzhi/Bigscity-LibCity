@@ -102,7 +102,7 @@
         ],
         
         "STTSNet": {
-            "dataset_class": "STResNetDataset",
+            "dataset_class": "STTSNetDataset",
             "executor": "TrafficStateExecutor",
             "evaluator": "TrafficStateEvaluator"
         },

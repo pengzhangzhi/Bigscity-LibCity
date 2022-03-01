@@ -3,10 +3,20 @@ import numpy as np
 from libcity.data.dataset import TrafficStateCPTDataset, TrafficStateGridDataset
 from libcity.utils.dataset import timestamp2array, timestamp2vec_origin
 
-class STResNetDataset(TrafficStateGridDataset, TrafficStateCPTDataset):
+class STTSNetDataset(TrafficStateGridDataset, TrafficStateCPTDataset):
     def __init__(self,config):
         super().__init__(config)
-
+        self.external_time = self.config.get('external_time', True)
+        self.parameters_str = \
+            self.parameters_str + '_' + str(self.len_closeness) \
+            + '_' + str(self.len_period) + '_' + str(self.len_trend) \
+            + '_' + str(self.interval_period) + '_' + str(self.interval_trend)
+        self.cache_file_name = os.path.join('./libcity/cache/dataset_cache/',
+                                            'grid_based_{}.npz'.format(self.parameters_str))
+        self.pad_forward_period = 0
+        self.pad_back_period = 0
+        self.pad_forward_trend = 0
+        self.pad_back_trend = 0
     def _get_external_array(self, timestamp_list, ext_data=None, previous_ext=False, ext_time=True):
         """
         根据时间戳数组，获取对应时间的外部特征
@@ -84,7 +94,12 @@ class STResNetDataset(TrafficStateGridDataset, TrafficStateCPTDataset):
         """
         lp = self.len_period * (self.pad_forward_period + self.pad_back_period + 1)
         lt = self.len_trend * (self.pad_forward_trend + self.pad_back_trend + 1)
-        return {"scaler": self.scaler, "adj_mx": self.adj_mx,
-                "num_nodes": self.num_nodes, "feature_dim": self.feature_dim, "ext_dim": self.ext_dim,
-                "output_dim": self.output_dim, "len_row": self.len_row, "len_column": self.len_column,
-                "len_closeness": self.len_closeness, "len_period": lp, "len_trend": lt, "num_batches": self.num_batches}
+        return {
+            "scaler": self.scaler,
+            "map_height":self.len_row,
+            "map_width":self.len_column,
+            "nb_flow":self.feature_dim,
+            "num_batches": self.num_batches,
+            "len_closeness": self.len_closeness, "len_period": lp, "len_trend": lt,
+        }
+       
