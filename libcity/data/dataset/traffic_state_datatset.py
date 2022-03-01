@@ -351,6 +351,12 @@ class TrafficStateDataset(AbstractDataset):
         data = np.array(data, dtype=np.float)      # (len_row, len_column, len_time, feature_dim)
         data = data.swapaxes(2, 0).swapaxes(1, 2)  # (len_time, len_row, len_column, feature_dim)
         self._logger.info("Loaded file " + filename + '.grid' + ', shape=' + str(data.shape))
+        print("*"*20)
+        print("data",data.shape)
+        print("timesolts",self.timesolts.shape)
+        np.save("data",data)
+        np.save("timesolts",self.timesolts)
+        print("*"*20)
         return data
 
     def _load_od_4d(self, filename):

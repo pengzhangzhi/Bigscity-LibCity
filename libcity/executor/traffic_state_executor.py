@@ -363,9 +363,17 @@ class TrafficStateExecutor(AbstractExecutor):
         self.model.train()
         loss_func = loss_func if loss_func is not None else self.model.calculate_loss
         losses = []
+        print("train")
         for batch in train_dataloader:
             self.optimizer.zero_grad()
             batch.to_tensor(self.device)
+
+            y_true = batch['y']
+            y_predicted = self.model.predict(batch)
+            y_true = self.model._scaler.inverse_transform(y_true)
+            y_predicted = self.model._scaler.inverse_transform(y_predicted)
+            np.save("train_y_true",y_true.detach().cpu().numpy())
+            np.save("train_y_predicted",y_predicted.detach().cpu().numpy())
             loss = loss_func(batch)
             self._logger.debug(loss.item())
             losses.append(loss.item())
@@ -391,8 +399,16 @@ class TrafficStateExecutor(AbstractExecutor):
             self.model.eval()
             loss_func = loss_func if loss_func is not None else self.model.calculate_loss
             losses = []
+            print("val")
             for batch in eval_dataloader:
                 batch.to_tensor(self.device)
+
+                y_true = batch['y']
+                y_predicted = self.model.predict(batch)
+                y_true = self.model._scaler.inverse_transform(y_true)
+                y_predicted = self.model._scaler.inverse_transform(y_predicted)
+                np.save("eval_y_true",y_true.cpu().numpy())
+                np.save("eval_y_predicted",y_predicted.cpu().numpy())
                 loss = loss_func(batch)
                 self._logger.debug(loss.item())
                 losses.append(loss.item())

@@ -14,10 +14,10 @@
 =================================================='''
 from __future__ import absolute_import
 import sys
-sys.path.append('/home/ubuntu/Bigscity-LibCity/libcity/model')
+sys.path.append('/home/ubuntu/Bigscity-LibCity/libcity/model/traffic_flow_prediction')
 sys.path.append('/home/ubuntu/Bigscity-LibCity')
 sys.path.append('/home/ubuntu/Bigscity-LibCity/libcity')
-print(sys.path)
+
 import os
 from libcity.model.abstract_traffic_state_model import AbstractTrafficStateModel
 import sys
@@ -28,7 +28,7 @@ from torch.nn import init
 from base_layers import BasicBlock
 from vit import ViT
 from logging import getLogger
-
+from libcity.model import loss
 
 print(sys.path)
 
@@ -109,18 +109,21 @@ class STTSNet(AbstractTrafficStateModel):
         super().__init__(config, data_feature)
         self._scaler = data_feature.get('scaler')
         self._logger = getLogger()
-
         self.map_height = data_feature.get("map_height",20)
         self.map_width = data_feature.get("map_width",10)
         self.nb_flow = data_feature.get("nb_flow",2)
+        self.len_closeness = data_feature.get("len_closeness",6)
+        self.len_trend = data_feature.get("len_trend",6)
+
+
         self.close_dim = config.get("close_dim",64)
         self.trend_dim = config.get("trend_dim",64)
         self.close_head = config.get("close_head",2)
         self.trend_head = config.get("trend_head",2)
         self.conv_channels = config.get("conv_channels",64)
         self.patch_size = config.get("patch_size",(10,10))
-        self.close_channels = config.get("close_channels",6) * 2
-        self.trend_channels = config.get("trend_channels",6) * 2
+        self.close_channels = self.len_closeness * 2
+        self.trend_channels = self.len_trend * 2
         self.close_depth = config.get("close_depth",2)
         self.trend_depth = config.get("trend_depth",2)
         self.close_mlp_dim = config.get("close_mlp_dim",128)
@@ -130,6 +133,8 @@ class STTSNet(AbstractTrafficStateModel):
         trend_dim_head = int(self.trend_dim / self.trend_head)
         self.pre_conv = config.get("pre_conv",True)
         self.drop_prob = config.get("drop_prob",0.1)
+        self.shortcut = config.get("short_cut",True)
+
         if self.pre_conv:
                 self.pre_close_conv = nn.Sequential(
                     BasicBlock(inplanes=self.close_channels, planes=self.conv_channels),
@@ -174,7 +179,6 @@ class STTSNet(AbstractTrafficStateModel):
         )
         input_shape = (self.nb_flow, self.map_height, self.map_width)
 
-        self.shortcut = config.get("short_cut",True)
         if self.shortcut:
             self.Rc_Xc = Rc(input_shape)
             self.Rc_Xt = Rc(input_shape)
@@ -184,8 +188,7 @@ class STTSNet(AbstractTrafficStateModel):
         self.close_ilayer = iLayer(input_shape=input_shape)
         self.trend_ilayer = iLayer(input_shape=input_shape)
 
-        self.input_window = config.get('input_window', 1)
-        self.output_window = config.get('output_window', 1)
+        self.output_window = config.get('output_window', 1) # multi-step prediction.
         self.device = config.get('device', torch.device('cpu'))
 
 
@@ -198,8 +201,11 @@ class STTSNet(AbstractTrafficStateModel):
         :return:
                 outputs: [batch size, output_window, nb_flow, height, width]
         """
-        xc = batch['xc'].clone()
-        xt = batch['xt'].clone()
+        x = batch["X"].clone()
+        x = rearrange(x,"b l h w n -> b n l h w")
+        xc = x[:,:,:self.len_closeness,:,:]
+        xt = x[:,:,-self.len_trend:,:,:]
+        X_ext = batch["y_ext"].clone()
         
         if len(xc.shape) == 5:
             # reshape 5 dimensions to 4 dimensions.
@@ -232,7 +238,7 @@ class STTSNet(AbstractTrafficStateModel):
 
             if not self.training:
                 out = out.relu()
-            outputs.append(out.clone())
+            outputs.append(rearrange(out.clone(),"b n h w -> b h w n"))
             xc = torch.cat([xc[:,2:,:,:],out],dim=1)
         otuputs = torch.stack(outputs,dim=1)
         return otuputs
@@ -247,17 +253,21 @@ class STTSNet(AbstractTrafficStateModel):
         y_predicted = self.predict(batch)
         y_true = self._scaler.inverse_transform(y_true)
         y_predicted = self._scaler.inverse_transform(y_predicted)
-        return loss.masked_mae_torch(y_predicted, y_true, 0)
+
+        
+        MSEloss = loss.masked_mse_torch(y_predicted, y_true, 0)
+        print("Loss:",MSEloss)
+        return MSEloss
 
 if __name__ == '__main__':
-    shape = (1, 2, 6, 20, 10)
+    shape = (1, 12, 20, 10,2)
     # 1,12,32,32 -> 1,64,16*12
-    xt = torch.randn(shape)
+    x = torch.randn(shape)
     xc = torch.randn(shape)
-    transformer = STTSNet(config={"output_window":10},data_feature={})
+    transformer = STTSNet(config={"output_window":5},data_feature={})
     batch = {
-        "xc":xc ,
-        "xt":xt,
+        "X": x ,
+        "y_ext":xc,
     }
     pred = transformer(batch)
     print(pred.shape)

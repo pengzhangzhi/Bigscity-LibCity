@@ -19,7 +19,7 @@ from libcity.model.traffic_flow_prediction.CRANN import CRANN
 from libcity.model.traffic_flow_prediction.CONVGCNCommon import CONVGCNCommon
 from libcity.model.traffic_flow_prediction.DSAN import DSAN
 from libcity.model.traffic_flow_prediction.MultiSTGCnetCommon import MultiSTGCnetCommon
-FROM libcity.model.traffic_flow_prediction.STTSNet import STTSNet
+from libcity.model.traffic_flow_prediction.STTSNet import STTSNet
 __all__ = [
     "AGCRN",
     "ASTGCN",
